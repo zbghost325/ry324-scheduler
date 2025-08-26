@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Schedule Builder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            padding: 10px;
+        }
+
+        .header {
+            position: relative;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .header input {
+            font-size: 14px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 350px;
+        }
+
+        .data-controls {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: flex;
+            gap: 5px;
+        }
+
+        .data-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            background-color: #4CAF50;
+            color: white;
+            transition: opacity 0.2s;
+        }
+
+        .data-btn:hover {
+            opacity: 0.8;
+        }
+
+        .import-btn {
+            background-color: #2196F3;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .block-type-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        .block-type-btn:hover {
+            opacity: 0.8;
+        }
+
+        .block-type-btn.active {
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.3);
+        }
+
+        .supported-btn {
+            background-color: #90EE90;
+            color: #333;
+        }
+
+        .not-supported-btn {
+            background-color: #FFB6C1;
+            color: #333;
+        }
+
+        .maintenance-btn {
+            background-color: #87CEEB;
+            color: #333;
+        }
+
+        .clear-btn {
+            background-color: #ff4444;
+            color: white;
+        }
+
+        .schedule-container {
+            background: white;
+            border-radius: 6px;
+            padding: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: 60px repeat(7, 1fr);
+            gap: 1px;
+            background-color: #ddd;
+            border: 1px solid #ddd;
+            min-width: 700px;
+            position: relative;
+        }
+
+        .time-header, .day-header {
+            background-color: #f0f0f0;
+            padding: 6px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 12px;
+            border: 1px solid #ddd;
+        }
+
+        .time-slot {
+            background-color: white;
+            padding: 3px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .schedule-cell {
+            background-color: white;
+            min-height: 40px;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border: 1px solid #eee;
+        }
+
+        .schedule-cell:hover {
+            background-color: #f9f9f9;
+        }
+
+        .schedule-block {
+            position: absolute;
+            left: 1px;
+            right: 1px;
+            border-radius: 6px;
+            padding: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            cursor: move;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            line-height: 1.2;
+            z-index: 10;
+            border: 1px solid transparent;
+        }
+
+        .schedule-block:hover {
+            border-color: rgba(0,0,0,0.3);
+        }
+
+        /* Dynamic text sizing based on block height */
+        .schedule-block.size-small {
+            font-size: 9px;
+            line-height: 1.1;
+        }
+
+        .schedule-block.size-medium {
+            font-size: 11px;
+            line-height: 1.2;
+        }
+
+        .schedule-block.size-large {
+            font-size: 13px;
+            line-height: 1.3;
+        }
+
+        .schedule-block.size-small .icon {
+            font-size: 12px;
+        }
+
+        .schedule-block.size-medium .icon {
+            font-size: 16px;
+        }
+
+        .schedule-block.size-large .icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .schedule-block:hover {
+            border-color: rgba(0,0,0,0.3);
+        }
+
+        .schedule-block.maintenance {
+            clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+            background-color: #4ECDC4;
+            color: #333;
+        }
+
+        .schedule-block.supported {
+            background-color: #90EE90;
+            color: #333;
+        }
+
+        .schedule-block.not-supported {
+            background-color: #FFB6C1;
+            color: #333;
+        }
+
+        .icon {
+            font-size: 14px;
+            margin-bottom: 1px;
+        }
+
+        /* Print styles for better readability */
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            
+            html, body {
+                padding: 0;
+                margin: 0;
+                height: 100%;
+                overflow: hidden;
+            }
+            
+            .controls, .data-controls {
+                display: none !important;
+            }
+            
+            .header input {
+                display: none !important;
+            }
+            
+            .header {
+                margin-bottom: 2px;
+                text-align: center;
+                page-break-after: avoid;
+            }
+            
+            .header h1 {
+                font-size: 14px;
+                margin: 2px 0;
+                color: #333;
+            }
+            
+            .schedule-container {
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: white !important;
+                border-radius: 0 !important;
+                /* Scale to fit everything on one page */
+                transform: scale(0.5) !important;
+                transform-origin: top left !important;
+                width: 200% !important; /* Compensate for 0.5 scale */
+                page-break-inside: avoid !important;
+            }
+            
+            .schedule-grid {
+                position: relative !important;
+                background: #ddd !important;
+                page-break-inside: avoid !important;
+                display: grid !important;
+                grid-template-columns: 80px repeat(7, 1fr) !important;
+            }
+            
+            /* Keep cells from breaking */
+            .schedule-cell {
+                background: white !important;
+                border: 1px solid #ccc !important;
+                page-break-inside: avoid !important;
+            }
+            
+            .time-slot, .day-header {
+                font-weight: bold !important;
+                background: #f0f0f0 !important;
+                color: #333 !important;
+                border: 1px solid #999 !important;
+                page-break-inside: avoid !important;
+            }
+            
+            /* Calculate column positions for each day */
+            .schedule-block {
+                border: 2px solid rgba(0,0,0,0.5) !important;
+                font-weight: bold !important;
+                page-break-inside: avoid !important;
+                overflow: hidden !important;
+                box-sizing: border-box !important;
+            }
+            
+            /* Position blocks based on their day column */
+            .schedule-block[data-day-column="0"] {
+                left: 81px !important;
+                width: calc((100% - 80px) / 7 - 4px) !important;
+            }
+            
+            .schedule-block[data-day-column="1"] {
+                left: calc(81px + (100% - 80px) / 7) !important;
+                width: calc((100% - 80px) / 7 - 4px) !important;
+            }
+            
+            .schedule-block[data-day-column="2"] {
+                left: calc(81px + 2 * (100% - 80px) / 7) !important;
+                width: calc((100% - 80px) / 7 - 4px) !important;
+            }
+            
+            .schedule-block[data-day-column="3"] {
+                left: calc(81px + 3 * (100% - 80px) / 7) !important;
+                width: calc((100% - 80px) / 7 - 4px) !important;
+            }
+            
+            .schedule-block[data-day-column="4"] {
+                left: calc(81px + 4 * (100% - 80px) / 7) !important;
+                width: calc((100% - 80px) / 7 - 4px) !important;
+            }
+            
+            .schedule-block[data-day-column="5"] {
+                left: calc(81px + 5 * (100% - 80px) / 7) !important;
+                width: calc((100% - 80px) / 7 - 4px) !important;
+            }
+            
+            .schedule-block[data-day-column="6"] {
+                left: calc(81px + 6 * (100% - 80px) / 7) !important;
+                width: calc((100% - 80px) / 7 - 4px) !important;
+            }
+            
+            /* Adjust font sizes for readability */
+            .schedule-block {
+                font-size: 13px !important;
+                line-height: 1.3 !important;
+                padding: 3px !important;
+            }
+            
+            .schedule-block .icon {
+                font-size: 18px !important;
+                margin-bottom: 2px !important;
+            }
+            
+            .schedule-block small {
+                font-size: 10px !important;
+            }
+            
+            /* Size-specific adjustments for print */
+            .schedule-block.size-small {
+                font-size: 11px !important;
+                padding: 2px !important;
+            }
+            
+            .schedule-block.size-small .icon {
+                font-size: 14px !important;
+            }
+            
+            .schedule-block.size-small small {
+                font-size: 9px !important;
+            }
+            
+            .schedule-block.size-medium {
+                font-size: 12px !important;
+            }
+            
+            .schedule-block.size-large {
+                font-size: 14px !important;
+            }
+            
+            .schedule-block.size-large .icon {
+                font-size: 20px !important;
+            }
+            
+            .schedule-block.size-large small {
+                font-size: 11px !important;
+            }
+            
+            /* Ensure colors print properly */
+            .schedule-block.supported {
+                background-color: #90EE90 !important;
+                color: #000 !important;
+                border-color: #50A050 !important;
+            }
+            
+            .schedule-block.not-supported {
+                background-color: #FFB6C1 !important;
+                color: #000 !important;
+                border-color: #FF7F90 !important;
+            }
+            
+            .schedule-block.maintenance {
+                background-color: #87CEEB !important;
+                color: #000 !important;
+                border-color: #4A9AC0 !important;
+                clip-path: none !important;
+            }
+            
+            .resize-handle {
+                display: none !important;
+            }
+            
+            /* Force single page landscape */
+            @page {
+                size: landscape;
+                margin: 0.2in;
+            }
+            
+            /* Prevent any page breaks */
+            * {
+                page-break-inside: avoid !important;
+            }
+        }
+
+        .block-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .resize-handle {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 6px;
+            cursor: ns-resize;
+            z-index: 20;
+            background: rgba(0,0,0,0.1);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .resize-handle:hover,
+        .schedule-block:hover .resize-handle {
+            opacity: 1;
+        }
+
+        .resize-handle.top {
+            top: 0;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .resize-handle.bottom {
+            bottom: 0;
+            border-radius: 0 0 6px 6px;
+        }
+
+        .resize-handle:hover {
+            background: rgba(0,0,0,0.3);
+        }
+
+        .edit-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            min-width: 250px;
+        }
+
+        .edit-popup input, .edit-popup textarea {
+            width: 100%;
+            margin: 4px 0;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .edit-popup button {
+            margin: 3px;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .edit-popup h3 {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .save-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .cancel-btn {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+        .dragging {
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <input type="text" id="scheduleTitle" value="RY324 - Charging / Maintenance Schedule - Spring 2025" placeholder="Schedule Title">
+        <h1 id="displayTitle">RY324 - Charging / Maintenance Schedule - Spring 2025</h1>
+        <div class="data-controls">
+            <button class="data-btn" onclick="exportSchedule()">📥 Export JSON</button>
+            <button class="data-btn import-btn" onclick="document.getElementById('fileInput').click()">📤 Import JSON</button>
+            <input type="file" id="fileInput" accept=".json" onchange="importSchedule(event)">
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="block-type-btn supported-btn" data-type="supported">✔ Supported Class</button>
+        <button class="block-type-btn not-supported-btn" data-type="not-supported">✗ Not Supported</button>
+        <button class="block-type-btn maintenance-btn" data-type="maintenance">🔧 Maintenance</button>
+        <button class="block-type-btn clear-btn" onclick="clearSchedule()">Clear All</button>
+    </div>
+
+    <div class="schedule-container">
+        <div class="schedule-grid" id="scheduleGrid">
+            <!-- Headers -->
+            <div class="time-header"></div>
+            <div class="day-header">Sun</div>
+            <div class="day-header">Mon</div>
+            <div class="day-header">Tue</div>
+            <div class="day-header">Wed</div>
+            <div class="day-header">Thu</div>
+            <div class="day-header">Fri</div>
+            <div class="day-header">Sat</div>
+        </div>
+    </div>
+
+    <script>
+        let selectedBlockType = 'supported';
+        let editingBlock = null;
+        let isResizing = false;
+        let resizeData = null;
+        
+        // Time slots from 7 AM to 9 PM in 30-minute increments
+        const timeSlots = [];
+        for (let hour = 7; hour <= 21; hour++) {
+            // Add hour mark
+            const time12 = hour > 12 ? hour - 12 : hour;
+            const ampm = hour < 12 ? 'AM' : 'PM';
+            if (hour === 12) {
+                timeSlots.push(`12 ${ampm}`);
+            } else {
+                timeSlots.push(`${time12} ${ampm}`);
+            }
+            
+            // Add 30-minute mark (except for the last hour)
+            if (hour < 21) {
+                timeSlots.push(`${time12}:30 ${ampm}`);
+            }
+        }
+
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        // Block data storage - work in 5-minute increments internally
+        let blocks = [];
+        let blockIdCounter = 0;
+
+        // Initialize schedule grid
+        function initializeGrid() {
+            const grid = document.getElementById('scheduleGrid');
+            
+            // Create time slots and cells
+            timeSlots.forEach((time, timeIndex) => {
+                // Time label
+                const timeSlot = document.createElement('div');
+                timeSlot.className = 'time-slot';
+                timeSlot.textContent = time;
+                grid.appendChild(timeSlot);
+                
+                // Day cells for this time slot
+                days.forEach((day, dayIndex) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'schedule-cell';
+                    cell.dataset.time = timeIndex;
+                    cell.dataset.day = dayIndex;
+                    cell.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        addBlock(timeIndex, dayIndex);
+                    });
+                    grid.appendChild(cell);
+                });
+            });
+        }
+
+        // Block type selection
+        document.querySelectorAll('.block-type-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                if (e.target.dataset.type) {
+                    document.querySelectorAll('.block-type-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    selectedBlockType = e.target.dataset.type;
+                }
+            });
+        });
+
+        // Set default selection
+        document.querySelector('.supported-btn').classList.add('active');
+
+        // Add block to schedule
+        function addBlock(timeIndex, dayIndex) {
+            // Validate inputs
+            if (typeof timeIndex !== 'number' || typeof dayIndex !== 'number' || 
+                timeIndex < 0 || dayIndex < 0 || dayIndex >= days.length) {
+                return;
+            }
+            
+            const startIncrement = timeIndex * 6; // Convert 30-min slot to 5-min increments
+            const defaultDuration = 6; // 30 minutes in 5-minute increments (6 * 5 = 30)
+            
+            // Check if there's already a block at this position
+            const existingBlock = blocks.find(b => 
+                b.day === dayIndex && 
+                startIncrement < b.startIncrement + b.durationIncrements &&
+                startIncrement + defaultDuration > b.startIncrement
+            );
+            
+            if (existingBlock) return; // Don't add if position is occupied
+            
+            const blockId = blockIdCounter++;
+            
+            const blockData = {
+                id: blockId,
+                type: selectedBlockType,
+                day: dayIndex,
+                startIncrement: startIncrement,
+                durationIncrements: defaultDuration,
+                icon: getDefaultIcon(selectedBlockType),
+                customContent: false,
+                content: '' // Initialize content as empty
+            };
+            
+            // Add default class/instructor fields for supported blocks
+            if (selectedBlockType === 'supported') {
+                blockData.className = '';
+                blockData.instructorName = '';
+            }
+            
+            // Generate content with proper time range
+            updateBlockContent(blockData);
+            
+            blocks.push(blockData);
+            renderBlock(blockData);
+        }
+
+        // Calculate time range string from increments
+        function getTimeRange(startIncrement, durationIncrements) {
+            // Convert increments to minutes
+            const startMinutes = startIncrement * 5;
+            const endMinutes = startMinutes + (durationIncrements * 5);
+            
+            // Convert to hours from 7 AM base
+            const startTotalMinutes = 7 * 60 + startMinutes;
+            const endTotalMinutes = 7 * 60 + endMinutes;
+            
+            const formatTime = (totalMinutes) => {
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                
+                // Handle 12-hour format correctly
+                let hour12;
+                let ampm;
+                
+                if (hours === 0) {
+                    hour12 = 12;
+                    ampm = 'AM';
+                } else if (hours === 12) {
+                    hour12 = 12;
+                    ampm = 'PM';
+                } else if (hours < 12) {
+                    hour12 = hours;
+                    ampm = 'AM';
+                } else {
+                    hour12 = hours - 12;
+                    ampm = 'PM';
+                }
+                
+                const minuteStr = minutes === 0 ? '' : `:${minutes.toString().padStart(2, '0')}`;
+                return `${hour12}${minuteStr}${ampm}`;
+            };
+            
+            return `${formatTime(startTotalMinutes)} - ${formatTime(endTotalMinutes)}`;
+        }
+
+        // Update block content with current time range
+        function updateBlockContent(blockData) {
+            // Don't update if user has explicitly set custom content via the edit dialog
+            // But always update if this is called from resize operations
+            if (blockData.customContent === true) return;
+            
+            const timeRange = getTimeRange(blockData.startIncrement, blockData.durationIncrements);
+            
+            switch (blockData.type) {
+                case 'supported':
+                    // Use custom class/instructor names if provided, otherwise defaults
+                    const className = blockData.className || 'Supported Class';
+                    const instructorName = blockData.instructorName || 'Instructor Name';
+                    blockData.content = `${className}<br><small>${instructorName}</small><br><small>${timeRange}</small>`;
+                    break;
+                case 'not-supported':
+                    blockData.content = `Classroom In-Use<br><small>[Not Supported]</small><br><small>${timeRange}</small>`;
+                    break;
+                case 'maintenance':
+                    blockData.content = `Charging /<br>Maintenance Time<br>Available<br><small>${timeRange}</small>`;
+                    break;
+            }
+        }
+
+        // Get default icon for block types
+        function getDefaultIcon(type) {
+            switch (type) {
+                case 'supported':
+                    return '✔';
+                case 'not-supported':
+                    return '✗';
+                case 'maintenance':
+                    return '🔧⚡';
+                default:
+                    return '';
+            }
+        }
+
+        // Render block on grid
+        function renderBlock(blockData) {
+            const grid = document.getElementById('scheduleGrid');
+            
+            // Debug log to check values
+            console.log('Rendering block:', {
+                id: blockData.id,
+                startIncrement: blockData.startIncrement,
+                durationIncrements: blockData.durationIncrements,
+                calculatedTime: getTimeRange(blockData.startIncrement, blockData.durationIncrements)
+            });
+            
+            // Get all cells in the day column to use actual positions
+            const dayCells = document.querySelectorAll(`.schedule-cell[data-day="${blockData.day}"]`);
+            if (!dayCells || dayCells.length === 0) return;
+            
+            const block = document.createElement('div');
+            block.className = `schedule-block ${blockData.type}`;
+            block.dataset.blockId = blockData.id;
+            
+            // Calculate which cells this block spans
+            // Each cell represents 30 minutes = 6 increments
+            const startCellIndex = Math.floor(blockData.startIncrement / 6);
+            const endIncrement = blockData.startIncrement + blockData.durationIncrements;
+            const endCellIndex = Math.floor((endIncrement - 1) / 6); // -1 because end is exclusive
+            
+            // Get actual cell positions
+            const startCell = dayCells[startCellIndex];
+            const endCell = dayCells[Math.min(endCellIndex, dayCells.length - 1)];
+            
+            if (!startCell) return;
+            
+            // Calculate pixel offset within the start cell
+            const incrementsIntoStartCell = blockData.startIncrement % 6;
+            const cellHeight = startCell.offsetHeight;
+            const pixelOffsetInCell = (incrementsIntoStartCell / 6) * cellHeight;
+            
+            // Calculate top position
+            const topPosition = startCell.offsetTop + pixelOffsetInCell;
+            
+            // Calculate bottom position
+            let bottomPosition;
+            if (endCell) {
+                const incrementsIntoEndCell = endIncrement % 6;
+                if (incrementsIntoEndCell === 0) {
+                    // Ends exactly at a cell boundary
+                    bottomPosition = endCell.offsetTop + endCell.offsetHeight;
+                } else {
+                    // Ends partway through a cell
+                    const pixelIntoEndCell = (incrementsIntoEndCell / 6) * endCell.offsetHeight;
+                    bottomPosition = endCell.offsetTop + pixelIntoEndCell;
+                }
+            } else {
+                // If we somehow go past the last cell, use the last cell's bottom
+                const lastCell = dayCells[dayCells.length - 1];
+                bottomPosition = lastCell.offsetTop + lastCell.offsetHeight;
+            }
+            
+            // Calculate height from actual positions
+            const blockHeight = bottomPosition - topPosition;
+            
+            // Set position and size
+            block.style.position = 'absolute';
+            block.style.top = `${topPosition}px`;
+            block.style.left = `${startCell.offsetLeft + 1}px`;
+            block.style.width = `${startCell.offsetWidth - 2}px`;
+            block.style.height = `${blockHeight}px`;
+            
+            // Store print values as data attributes for CSS to use
+            block.dataset.printTop = topPosition;
+            block.dataset.printHeight = blockHeight;
+            block.dataset.printLeft = startCell.offsetLeft + 1;
+            block.dataset.printWidth = startCell.offsetWidth - 2;
+            block.dataset.dayColumn = blockData.day;
+            
+            // Add size class based on block height for dynamic text sizing
+            if (blockHeight < 60) {
+                block.classList.add('size-small');
+            } else if (blockHeight < 120) {
+                block.classList.add('size-medium');
+            } else {
+                block.classList.add('size-large');
+            }
+            
+            block.innerHTML = `
+                <div class="resize-handle top"></div>
+                <div class="block-content">
+                    <div class="icon">${blockData.icon}</div>
+                    <div>${blockData.content}</div>
+                </div>
+                <div class="resize-handle bottom"></div>
+            `;
+            
+            // Add event listeners
+            let clickTimer = null;
+            
+            block.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                // Clear any existing timer
+                if (clickTimer) {
+                    clearTimeout(clickTimer);
+                    clickTimer = null;
+                    // This was a double click - delete the block
+                    deleteBlockById(blockData.id);
+                } else {
+                    // Set timer for single click - edit the block
+                    clickTimer = setTimeout(() => {
+                        clickTimer = null;
+                        editBlock(blockData);
+                    }, 250); // Wait 250ms to see if it's a double click
+                }
+            });
+            
+            // Add resize functionality
+            const topHandle = block.querySelector('.resize-handle.top');
+            const bottomHandle = block.querySelector('.resize-handle.bottom');
+            
+            topHandle.addEventListener('mousedown', (e) => startResize(e, blockData, 'top'));
+            bottomHandle.addEventListener('mousedown', (e) => startResize(e, blockData, 'bottom'));
+            
+            grid.appendChild(block);
+        }
+
+        // Start resize operation
+        function startResize(e, blockData, direction) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            isResizing = true;
+            document.body.classList.add('dragging');
+            
+            const startY = e.clientY;
+            
+            resizeData = {
+                blockData,
+                direction,
+                startY,
+                originalStartIncrement: blockData.startIncrement,
+                originalDurationIncrements: blockData.durationIncrements
+            };
+            
+            document.addEventListener('mousemove', handleResize);
+            document.addEventListener('mouseup', endResize);
+        }
+
+        // Handle resize dragging - 5 minute increments
+        function handleResize(e) {
+            if (!isResizing || !resizeData) return;
+            
+            const deltaY = e.clientY - resizeData.startY;
+            
+            // Get all cells to calculate total grid height
+            const cells = document.querySelectorAll('.schedule-cell[data-day="0"]');
+            if (!cells || cells.length === 0) return;
+            
+            const firstCell = cells[0];
+            const lastCell = cells[cells.length - 1];
+            const totalGridHeight = lastCell.offsetTop + lastCell.offsetHeight - firstCell.offsetTop;
+            
+            // Calculate pixels per increment based on total grid
+            const totalIncrements = 168; // 14 hours * 12 increments/hour
+            const pixelsPerIncrement = totalGridHeight / totalIncrements;
+            
+            // Calculate movement in 5-minute increments
+            const incrementsMoved = Math.round(deltaY / pixelsPerIncrement);
+            
+            // Constants
+            const maxEndIncrement = 168; // 9 PM
+            const minDuration = 1; // Minimum 5 minutes
+            
+            // Calculate new values based on direction
+            let newStartIncrement;
+            let newDurationIncrements;
+            
+            if (resizeData.direction === 'top') {
+                // Dragging top handle: start moves, end stays fixed
+                const originalEnd = resizeData.originalStartIncrement + resizeData.originalDurationIncrements;
+                newStartIncrement = resizeData.originalStartIncrement + incrementsMoved;
+                
+                // Constrain start position
+                newStartIncrement = Math.max(0, newStartIncrement); // Not before 7 AM
+                newStartIncrement = Math.min(originalEnd - minDuration, newStartIncrement); // Keep minimum duration
+                
+                // Calculate duration (end position stays the same)
+                newDurationIncrements = originalEnd - newStartIncrement;
+            } else {
+                // Dragging bottom handle: start stays fixed, end moves
+                newStartIncrement = resizeData.originalStartIncrement;
+                newDurationIncrements = resizeData.originalDurationIncrements + incrementsMoved;
+                
+                // Constrain duration
+                newDurationIncrements = Math.max(minDuration, newDurationIncrements); // Minimum duration
+                
+                // Don't extend past 9 PM
+                const maxDuration = maxEndIncrement - newStartIncrement;
+                newDurationIncrements = Math.min(maxDuration, newDurationIncrements);
+            }
+            
+            // Update block data with validated values
+            resizeData.blockData.startIncrement = newStartIncrement;
+            resizeData.blockData.durationIncrements = newDurationIncrements;
+            
+            // Update content
+            updateBlockContent(resizeData.blockData);
+            
+            // Re-render the block
+            const existingBlock = document.querySelector(`[data-block-id="${resizeData.blockData.id}"]`);
+            if (existingBlock) {
+                existingBlock.remove();
+            }
+            renderBlock(resizeData.blockData);
+        }
+
+        // End resize operation
+        function endResize() {
+            if (!isResizing) return;
+            
+            isResizing = false;
+            resizeData = null;
+            document.body.classList.remove('dragging');
+            
+            document.removeEventListener('mousemove', handleResize);
+            document.removeEventListener('mouseup', endResize);
+        }
+
+        // Edit block content
+        function editBlock(blockData) {
+            editingBlock = blockData;
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'overlay';
+            
+            const popup = document.createElement('div');
+            popup.className = 'edit-popup';
+            
+            // Different edit interface for supported classes
+            if (blockData.type === 'supported') {
+                const className = blockData.className || 'Supported Class';
+                const instructorName = blockData.instructorName || 'Instructor Name';
+                
+                popup.innerHTML = `
+                    <h3>Edit Supported Class</h3>
+                    <label style="font-size: 12px;">Class Name:</label>
+                    <input type="text" id="className" value="${className}" placeholder="e.g., ARTD200">
+                    <label style="font-size: 12px;">Instructor Name:</label>
+                    <input type="text" id="instructorName" value="${instructorName}" placeholder="e.g., Prof. Smith">
+                    <label style="font-size: 12px;">Icon:</label>
+                    <input type="text" id="blockIcon" value="${blockData.icon}">
+                    <div>
+                        <button class="save-btn" onclick="saveSupportedEdit()">Save</button>
+                        <button class="cancel-btn" onclick="cancelEdit()">Cancel</button>
+                        <button class="cancel-btn" onclick="deleteBlock()">Delete</button>
+                    </div>
+                `;
+            } else {
+                // Original edit interface for other block types
+                popup.innerHTML = `
+                    <h3>Edit Block</h3>
+                    <label style="font-size: 12px;">Content:</label>
+                    <textarea id="blockContent" rows="3">${blockData.content.replace(/<br>/g, '\n')}</textarea>
+                    <label style="font-size: 12px;">Icon:</label>
+                    <input type="text" id="blockIcon" value="${blockData.icon}">
+                    <div>
+                        <button class="save-btn" onclick="saveEdit()">Save</button>
+                        <button class="cancel-btn" onclick="cancelEdit()">Cancel</button>
+                        <button class="cancel-btn" onclick="deleteBlock()">Delete</button>
+                    </div>
+                `;
+            }
+            
+            document.body.appendChild(overlay);
+            document.body.appendChild(popup);
+        }
+
+        // Save supported class edit
+        function saveSupportedEdit() {
+            const className = document.getElementById('className').value.trim() || 'Supported Class';
+            const instructorName = document.getElementById('instructorName').value.trim() || 'Instructor Name';
+            const icon = document.getElementById('blockIcon').value;
+            
+            editingBlock.className = className;
+            editingBlock.instructorName = instructorName;
+            editingBlock.icon = icon;
+            // Don't mark as customContent - we want times to update on resize
+            editingBlock.customContent = false;
+            
+            // Update content with the new values
+            updateBlockContent(editingBlock);
+            
+            // Re-render the block
+            const existingBlock = document.querySelector(`[data-block-id="${editingBlock.id}"]`);
+            if (existingBlock) {
+                existingBlock.remove();
+            }
+            renderBlock(editingBlock);
+            
+            cancelEdit();
+        }
+
+        // Save block edit
+        function saveEdit() {
+            const content = document.getElementById('blockContent').value;
+            const icon = document.getElementById('blockIcon').value;
+            
+            editingBlock.content = content.replace(/\n/g, '<br>');
+            editingBlock.icon = icon;
+            editingBlock.customContent = true; // Mark as having custom content
+            
+            // Re-render the block
+            const existingBlock = document.querySelector(`[data-block-id="${editingBlock.id}"]`);
+            if (existingBlock) {
+                existingBlock.remove();
+            }
+            renderBlock(editingBlock);
+            
+            cancelEdit();
+        }
+
+        // Cancel edit
+        function cancelEdit() {
+            const overlay = document.querySelector('.overlay');
+            const popup = document.querySelector('.edit-popup');
+            if (overlay) overlay.remove();
+            if (popup) popup.remove();
+            editingBlock = null;
+        }
+
+        // Delete block by ID
+        function deleteBlockById(blockId) {
+            const blockIndex = blocks.findIndex(b => b.id === blockId);
+            if (blockIndex > -1) {
+                blocks.splice(blockIndex, 1);
+            }
+            
+            const existingBlock = document.querySelector(`[data-block-id="${blockId}"]`);
+            if (existingBlock) {
+                existingBlock.remove();
+            }
+        }
+
+        // Delete block
+        function deleteBlock() {
+            deleteBlockById(editingBlock.id);
+            cancelEdit();
+        }
+
+        // Clear entire schedule
+        function clearSchedule() {
+            if (window.confirm('Are you sure you want to clear the entire schedule?')) {
+                blocks = [];
+                blockIdCounter = 0; // Reset counter
+                document.querySelectorAll('.schedule-block').forEach(block => block.remove());
+            }
+        }
+
+        // Update title
+        document.getElementById('scheduleTitle').addEventListener('input', (e) => {
+            document.getElementById('displayTitle').textContent = e.target.value;
+        });
+
+        // Export schedule to JSON
+        function exportSchedule() {
+            const scheduleData = {
+                title: document.getElementById('scheduleTitle').value,
+                blocks: blocks,
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            const dataStr = JSON.stringify(scheduleData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            const fileName = scheduleData.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '_' + 
+                            new Date().toISOString().slice(0, 10) + '.json';
+            link.download = fileName;
+            link.click();
+            
+            URL.revokeObjectURL(link.href);
+        }
+
+        // Import schedule from JSON
+        function importSchedule(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const scheduleData = JSON.parse(e.target.result);
+                    
+                    // Validate the data structure
+                    if (!scheduleData.blocks || !Array.isArray(scheduleData.blocks)) {
+                        throw new Error('Invalid schedule format');
+                    }
+                    
+                    // Clear existing schedule
+                    blocks = [];
+                    document.querySelectorAll('.schedule-block').forEach(block => block.remove());
+                    
+                    // Load the title
+                    if (scheduleData.title) {
+                        document.getElementById('scheduleTitle').value = scheduleData.title;
+                        document.getElementById('displayTitle').textContent = scheduleData.title;
+                    }
+                    
+                    // Load blocks and update ID counter
+                    let maxId = 0;
+                    scheduleData.blocks.forEach(blockData => {
+                        // Validate block data
+                        if (typeof blockData.id !== 'number' || 
+                            typeof blockData.day !== 'number' ||
+                            typeof blockData.startIncrement !== 'number' ||
+                            typeof blockData.durationIncrements !== 'number') {
+                            console.warn('Skipping invalid block:', blockData);
+                            return;
+                        }
+                        
+                        // Validate ranges
+                        if (blockData.day < 0 || blockData.day >= 7 ||
+                            blockData.startIncrement < 0 || blockData.startIncrement >= 168 ||
+                            blockData.durationIncrements < 1 || 
+                            blockData.startIncrement + blockData.durationIncrements > 168) {
+                            console.warn('Block out of range, adjusting:', blockData);
+                            // Try to fix the block
+                            blockData.day = Math.max(0, Math.min(6, blockData.day));
+                            blockData.startIncrement = Math.max(0, Math.min(167, blockData.startIncrement));
+                            blockData.durationIncrements = Math.max(1, Math.min(168 - blockData.startIncrement, blockData.durationIncrements));
+                        }
+                        
+                        // Fix for supported blocks - ensure they have className and instructorName
+                        if (blockData.type === 'supported') {
+                            // If these fields don't exist, initialize them
+                            if (!blockData.className) {
+                                blockData.className = 'Supported Class';
+                            }
+                            if (!blockData.instructorName) {
+                                blockData.instructorName = 'Instructor Name';
+                            }
+                            // Don't mark as custom content so time updates work
+                            blockData.customContent = false;
+                        }
+                        
+                        // For old format with content field, try to extract class/instructor info
+                        if (blockData.content && blockData.type === 'supported' && !blockData.customContent) {
+                            // Try to parse content for class and instructor names
+                            const lines = blockData.content.split('<br>');
+                            if (lines.length > 0 && lines[0] !== 'Supported Class') {
+                                blockData.className = lines[0];
+                            }
+                            if (lines.length > 1) {
+                                const instructorLine = lines[1].replace(/<small>|<\/small>/g, '');
+                                if (instructorLine !== 'Instructor Name') {
+                                    blockData.instructorName = instructorLine;
+                                }
+                            }
+                        }
+                        
+                        // Ensure content is updated with correct time
+                        updateBlockContent(blockData);
+                        
+                        blocks.push(blockData);
+                        renderBlock(blockData);
+                        
+                        if (blockData.id > maxId) {
+                            maxId = blockData.id;
+                        }
+                    });
+                    
+                    // Update counter to avoid ID conflicts
+                    blockIdCounter = maxId + 1;
+                    
+                    alert('Schedule imported successfully!');
+                } catch (error) {
+                    alert('Error importing schedule: ' + error.message);
+                }
+                
+                // Reset file input
+                event.target.value = '';
+            };
+            
+            reader.readAsText(file);
+        }
+
+        // Initialize the application
+        initializeGrid();
+    </script>
+</body>
+</html>
